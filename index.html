@@ -132,14 +132,15 @@ const sum=(a,f)=>a.reduce((t,x)=>t+f(x),0);
 
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}norm(d)}
 function norm(d){
-  S=Object.assign({cards:[],expenses:[],goals:[],reserve:{monthly:0,moves:[]},invest:[],salary:{value:0,day:0},fixed:[],income:[],fixedPaid:{},budgets:{},payments:[],lastBackup:'',theme:'auto'},d||{});
+  S=Object.assign({cards:[],expenses:[],goals:[],reserve:{monthly:0,moves:[]},invest:[],salary:{value:0,day:0},fixed:[],income:[],fixedPaid:{},budgets:{},payments:[],goalLog:[],lastBackup:'',theme:'auto'},d||{});
   S.reserve=Object.assign({monthly:0,moves:[]},S.reserve||{});
   S.salary=Object.assign({value:0,day:0},S.salary||{});
   if(!Array.isArray(S.fixed))S.fixed=[];
   if(!Array.isArray(S.income))S.income=[];
   if(!S.fixedPaid||typeof S.fixedPaid!=='object')S.fixedPaid={};
   if(!S.budgets||typeof S.budgets!=='object')S.budgets={};
-  if(!Array.isArray(S.payments))S.payments=[];}
+  if(!Array.isArray(S.payments))S.payments=[];
+  if(!Array.isArray(S.goalLog))S.goalLog=[];}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('⚠️ Não foi possível salvar neste navegador')}}
 
 /* ---------- cálculos ---------- */
@@ -153,6 +154,7 @@ const fixPaid=id=>(S.fixedPaid[curM()]||[]).includes(id);
 function addMonths(ds,k){const[y,m,d]=ds.split('-').map(Number);const t=new Date(y,m-1+k,1);const dim=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();return t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(Math.min(d,dim))}
 function daysUntil(d){const n=new Date(),y=n.getFullYear(),mo=n.getMonth(),dim=(yy,mm)=>new Date(yy,mm+1,0).getDate();const t0=new Date(y,mo,n.getDate());let t=new Date(y,mo,Math.min(d,dim(y,mo)));if(t<t0)t=new Date(y,mo+1,Math.min(d,dim(y,mo+1)));return Math.round((t-t0)/864e5)}
 const resTotal=pot=>sum(S.reserve.moves.filter(m=>!pot||m.pot===pot),m=>m.type==='in'?m.value:-m.value);
+const savedIn=m=>sum(S.reserve.moves.filter(x=>x.date.slice(0,7)===m),x=>x.type==='in'?x.value:-x.value)+sum(S.goalLog.filter(x=>x.date.slice(0,7)===m),x=>x.amount);
 const incomeIn=m=>sum(S.income.filter(i=>i.date.slice(0,7)===m),i=>i.value);
 const cardName=id=>(S.cards.find(c=>c.id===id)||{}).name||'Cartão removido';
 const bar=(p,color)=>`<div class="bar ${color||''}"><i style="width:${Math.max(0,Math.min(100,p))}%"></i></div>`;
@@ -207,7 +209,8 @@ function vHome(){
   const nowD=new Date(),dim=new Date(nowD.getFullYear(),nowD.getMonth()+1,0).getDate();
   const dd0=S.salary.day?daysUntil(S.salary.day):null;
   const days=dd0===null?Math.max(1,dim-nowD.getDate()+1):(dd0===0?30:dd0);
-  const perDay=entrou>0?(sobra>0?`<div class="card"><div class="row"><div><div class="mu">Você pode gastar por dia</div><div class="big g">${cnt(sobra/days)}</div></div><div style="text-align:right" class="mu">${brl(sobra)} ÷ ${days} dia${days>1?'s':''}<br>${dd0===null?'até o fim do mês':'até o salário'}</div></div></div>`:`<div class="card alert"><b>⚠️ Sem folga neste mês</b><div class="mu">Os gastos já passaram do que entrou.</div></div>`):'';
+  const guard=Math.max(0,savedIn(m)), livre=sobra-guard;
+  const perDay=entrou<=0?'':sobra<=0?`<div class="card alert"><b>⚠️ Sem folga neste mês</b><div class="mu">Os gastos já passaram do que entrou.</div></div>`:livre<=0?`<div class="card hero"><b>🎉 Você já guardou tudo que sobrou</b><div class="mu">Guardado no mês: <b class="g">${brl(guard)}</b>. Qualquer gasto novo vai além do que entrou.</div></div>`:`<div class="card"><div class="row"><div><div class="mu">Você pode gastar por dia</div><div class="big g">${cnt(livre/days)}</div></div><div style="text-align:right" class="mu">${brl(livre)} ÷ ${days} dia${days>1?'s':''}<br>${dd0===null?'até o fim do mês':'até o salário'}</div></div>${guard>0?`<div class="mu" style="margin-top:8px">Já descontei <b class="g">${brl(guard)}</b> que você guardou este mês (sobra ${brl(sobra)}).</div>`:''}</div>`;
   const bud=S.budgets,cs=catSpent(curM()),over=Object.keys(bud).filter(k=>bud[k]>0&&(cs[k]||0)>bud[k]);
   const overCard=over.length?`<div class="card alert"><b>⚠️ Limite estourado</b>${over.map(k=>`<div class="row" style="margin-top:6px"><span>${esc(k)}</span><span class="r">${brl(cs[k])} de ${brl(bud[k])}</span></div>`).join('')}</div>`:'';
   const hasData=S.cards.length||S.expenses.length||S.goals.length||S.invest.length||S.income.length||S.salary.value;
@@ -417,8 +420,8 @@ const A={
   addGoal(){form({title:'Nova meta',fields:[{k:'name',label:'O que quer comprar? (ex.: Celular)'},{k:'target',label:'Valor da meta (R$)',type:'money',ph:'2000'},{k:'saved',label:'Já guardado (R$)',type:'money',value:0},{k:'deadline',label:'Prazo (opcional)',type:'date',value:''}],validate:v=>!v.name?'Informe o nome.':v.target<=0?'Informe o valor da meta.':'',
     onSave:v=>S.goals.push({id:uid(),name:v.name,target:v.target,saved:v.saved,deadline:v.deadline})})},
   editGoal(id){const g=find(S.goals,id);form({title:'Editar meta',fields:[{k:'name',label:'Nome',value:g.name},{k:'target',label:'Valor da meta (R$)',type:'money',value:g.target},{k:'saved',label:'Guardado (R$)',type:'money',value:g.saved},{k:'deadline',label:'Prazo (opcional)',type:'date',value:g.deadline||''}],validate:need('nome'),
-    onSave:v=>Object.assign(g,v),onDelete:()=>{S.goals=S.goals.filter(x=>x.id!==id)}})},
-  depGoal(id){const g=find(S.goals,id);form({title:'Adicionar em “'+g.name+'”',fields:[{k:'v',label:'Valor (R$) — use negativo para retirar',type:'money',ph:'100'}],onSave:v=>{const was=g.saved>=g.target;g.saved=Math.max(0,g.saved+v.v);if(!was&&g.saved>=g.target)setTimeout(confetti,250)}})},
+    onSave:v=>Object.assign(g,v),onDelete:()=>{S.goals=S.goals.filter(x=>x.id!==id);S.goalLog=S.goalLog.filter(x=>x.goalId!==id)}})},
+  depGoal(id){const g=find(S.goals,id);form({title:'Adicionar em “'+g.name+'”',fields:[{k:'v',label:'Valor (R$) — use negativo para retirar',type:'money',ph:'100'}],onSave:v=>{const was=g.saved>=g.target,before=g.saved;g.saved=Math.max(0,g.saved+v.v);const delta=g.saved-before;if(delta!==0)S.goalLog.push({id:uid(),goalId:g.id,name:g.name,amount:delta,date:today()});if(!was&&g.saved>=g.target)setTimeout(confetti,250)}})},
   resMonthly(){form({title:'Meta mensal de reserva',fields:[{k:'v',label:'Quanto guardar por mês (R$)',type:'money',value:S.reserve.monthly||''}],onSave:v=>{S.reserve.monthly=v.v}})},
   resIn(){moveForm('in')},resOut(){moveForm('out')},
   editMove(id){moveForm(null,find(S.reserve.moves,id))},
