@@ -54,8 +54,10 @@ nav button.on span{filter:none;opacity:1;animation:pop .45s cubic-bezier(.3,1.6,
 .item .l{min-width:0}.item .l b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pill{display:inline-block;background:var(--card2);color:var(--mu);border-radius:99px;padding:2px 9px;font-size:11.5px;margin-right:4px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.grid3>div{background:var(--card2);border-radius:12px;padding:8px 10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.grid3>div{background:var(--card2);border-radius:12px;padding:8px 10px;min-width:0}
+.trio{display:grid;grid-template-columns:repeat(3,auto);justify-content:space-between;gap:8px}
+.trio>div:nth-child(2){text-align:center}.trio>div:last-child{text-align:right}
 .grid2 .card{margin:0}
 .empty{text-align:center;color:var(--mu);padding:28px 10px}
 .segc{display:flex;background:var(--card2);border-radius:14px;padding:4px;margin-bottom:12px;gap:4px}
@@ -88,11 +90,12 @@ textarea{min-height:90px}
 
 <script>
 const KEY='nexo_fin_v1';
-const CATS=['Mercado','Alimentação','Transporte','Lazer','Saúde','Moradia','Contas','Compras','Educação','Assinaturas','Outros'];
+const CATS=['Mercado','Alimentação','Transporte','Lazer','Saúde','Moradia','Contas','Compras','Educação','Assinaturas','Estoque da loja','Outros'];
 const METHODS={card:'Cartão',cash:'Dinheiro',debit:'Débito',pix:'Pix'};
 const POTS=['Reserva','Emergência'];
+const INCOME_CATS=['Vendas','Salário extra','Freelance','Reembolso','Presente','Outros'];
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let S, tab='home', sub='res', viewMonth='';
+let S, tab='home', sub='res', exsub='out', viewMonth='';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const brl=n=>(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -105,15 +108,17 @@ const fmtDate=d=>d?d.split('-').reverse().join('/'):'';
 const sum=(a,f)=>a.reduce((t,x)=>t+f(x),0);
 
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  S=Object.assign({cards:[],expenses:[],goals:[],reserve:{monthly:0,moves:[]},invest:[],salary:{value:0,day:0},fixed:[],theme:'auto'},d||{});
+  S=Object.assign({cards:[],expenses:[],goals:[],reserve:{monthly:0,moves:[]},invest:[],salary:{value:0,day:0},fixed:[],income:[],theme:'auto'},d||{});
   S.reserve=Object.assign({monthly:0,moves:[]},S.reserve||{});
   S.salary=Object.assign({value:0,day:0},S.salary||{});
-  if(!Array.isArray(S.fixed))S.fixed=[];}
+  if(!Array.isArray(S.fixed))S.fixed=[];
+  if(!Array.isArray(S.income))S.income=[];}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
 /* ---------- cálculos ---------- */
 const bill=c=>(c.bill||0)+sum(S.expenses.filter(e=>e.method==='card'&&e.cardId===c.id&&!e.paid),e=>e.value);
 const resTotal=pot=>sum(S.reserve.moves.filter(m=>!pot||m.pot===pot),m=>m.type==='in'?m.value:-m.value);
+const incomeIn=m=>sum(S.income.filter(i=>i.date.slice(0,7)===m),i=>i.value);
 const cardName=id=>(S.cards.find(c=>c.id===id)||{}).name||'Cartão removido';
 const bar=(p,color)=>`<div class="bar ${color||''}"><i style="width:${Math.max(0,Math.min(100,p))}%"></i></div>`;
 function payInfo(){
@@ -135,28 +140,27 @@ function applyTheme(){
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(S&&S.theme==='auto')applyTheme()});
 
 /* ---------- telas ---------- */
-const TABS=[['home','🏠','Início'],['cards','💳','Cartões'],['spend','🧾','Gastos'],['cofre','🐷','Cofre']];
-const TITLES={home:'Resumo',cards:'Cartões',spend:'Gastos',cofre:'Cofre'};
+const TABS=[['home','🏠','Início'],['cards','💳','Cartões'],['spend','🧾','Extrato'],['cofre','🏛️','Cofre']];
+const TITLES={home:'Resumo',cards:'Cartões',spend:'Extrato',cofre:'Cofre'};
 
 function vHome(){
   const m=today().slice(0,7);
   const bills=sum(S.cards,bill), lim=sum(S.cards,c=>c.limit);
   const avulso=sum(S.expenses.filter(e=>e.method!=='card'&&e.date.slice(0,7)===m),e=>e.value);
   const fixos=sum(S.fixed,f=>f.value);
-  const gasto=bills+avulso+fixos, sal=S.salary.value||0, sobra=sal-gasto;
+  const gasto=bills+avulso+fixos, sal=S.salary.value||0, extra=incomeIn(m), entrou=sal+extra, sobra=entrou-gasto;
   const inv=sum(S.invest,i=>i.value), gs=sum(S.goals,g=>g.saved), gt=sum(S.goals,g=>g.target), res=resTotal();
   const salaryCard=sal>0?
    `<div class="card hero"><div class="row"><div class="mu">💵 Salário</div><button class="btn sec sm" data-a="editSalary">Editar</button></div>
      <div class="big g">${cnt(sal)}</div><div class="mu">${payInfo()}</div></div>`:
    `<div class="card hero"><div class="mid">💵 Qual é o seu salário?</div><div class="mu" style="margin:4px 0 10px">Informe quanto você recebe para ver quanto sobra no mês.</div><button class="btn gn" data-a="editSalary">Definir salário</button></div>`;
   return salaryCard+`
-  <div class="card"><div class="row"><div><div class="mu">Gasto do mês</div><div class="mid r">${cnt(gasto)}</div></div>
-    <div style="text-align:right"><div class="mu">${sal>0?'Sobra':'Salário não definido'}</div>${sal>0?`<div class="mid ${sobra>=0?'g':'r'}">${cnt(sobra)}</div>`:''}</div></div>
-    ${sal>0?bar(gasto/sal*100,'r')+`<div class="mu">${(gasto/sal*100).toFixed(0)}% do salário</div>`:''}
-    <div class="mu" style="margin-top:6px">Faturas ${brl(bills)} · Fixos ${brl(fixos)} · Avulsos ${brl(avulso)}</div></div>
+  <div class="card"><div class="trio"><div><div class="mu">Entrou</div><b class="g" style="font-size:14px">${cnt(entrou)}</b></div><div><div class="mu">Gastou</div><b class="r" style="font-size:14px">${cnt(gasto)}</b></div><div><div class="mu">Sobra</div><b class="${sobra>=0?'g':'r'}" style="font-size:14px">${cnt(sobra)}</b></div></div>
+    ${entrou>0?bar(gasto/entrou*100,'r')+`<div class="mu">${(gasto/entrou*100).toFixed(0)}% do que entrou</div>`:'<div class="mu" style="margin-top:8px">Cadastre seu salário ou uma entrada para ver a sobra.</div>'}
+    <div class="mu" style="margin-top:6px">Faturas ${brl(bills)} · Fixos ${brl(fixos)} · Avulsos ${brl(avulso)}${extra?` · Extras +${brl(extra)}`:''}</div></div>
   <div class="card"><div class="row"><b>Limite dos cartões</b><span class="mu">${brl(lim-bills)} livre</span></div>
     ${bar(lim?bills/lim*100:0,'r')}<div class="mu"><span class="r">${brl(bills)}</span> usados de ${brl(lim)}</div></div>
-  <div class="card"><div class="row"><div class="mu">🐷 Cofre — tudo guardado</div></div><div class="big g">${cnt(res+inv+gs)}</div>
+  <div class="card"><div class="row"><div class="mu">🏛️ Cofre — tudo guardado</div></div><div class="big g">${cnt(res+inv+gs)}</div>
     <div class="grid3"><div><div class="mu">Reserva</div><b class="g">${brl(res)}</b></div><div><div class="mu">Metas</div><b class="g">${brl(gs)}</b></div><div><div class="mu">Investido</div><b class="g">${brl(inv)}</b></div></div>
     ${gt?bar(gs/gt*100,'g')+`<div class="mu">Metas: ${(gs/gt*100).toFixed(0)}% concluído</div>`:''}</div>`;
 }
@@ -172,6 +176,23 @@ function vCards(){
 }
 
 function vSpend(){
+  const seg=`<div class="segc">${[['out','Saídas'],['in','Entradas']].map(([k,l])=>`<button class="${exsub===k?'on':''}" data-a="exsub" data-id="${k}">${l}</button>`).join('')}</div>`;
+  return seg+(exsub==='in'?vEntradas():vSaidas());
+}
+function vEntradas(){
+  if(!viewMonth)viewMonth=today().slice(0,7);
+  const list=S.income.filter(i=>i.date.slice(0,7)===viewMonth).sort((a,b)=>b.date.localeCompare(a.date));
+  const sal=S.salary.value||0, extra=sum(list,i=>i.value), tot=sal+extra;
+  return `
+  <div class="card hero"><div class="mu">Total que entrou no mês</div><div class="big g">${cnt(tot)}</div>
+    <div class="mu" style="margin-top:6px">Salário ${brl(sal)} · Extras ${brl(extra)}</div></div>
+  <div class="sec-title"><h2>Entradas</h2><button class="btn gn sm" data-a="addInc">+ Entrada</button></div>
+  <input type="month" id="mon" value="${viewMonth}" style="margin-bottom:12px">
+  <div class="card">${sal>0?`<div class="item" data-a="editSalary"><div class="l"><b>Salário</b><span class="pill">Fixo</span><span class="mu">${S.salary.day?'Todo dia '+S.salary.day:'Mensal'}</span></div><b class="g">+${brl(sal)}</b></div>`:''}
+  ${list.map(i=>`<div class="item" data-a="editInc" data-id="${i.id}"><div class="l"><b>${esc(i.desc||i.category)}</b><span class="pill">${esc(i.category)}</span><span class="mu">${fmtDate(i.date)}</span></div><b class="g">+${brl(i.value)}</b></div>`).join('')}
+  ${(!sal&&!list.length)?'<div class="empty">Nenhuma entrada neste mês.<br>Salário, vendas, extras…</div>':''}</div>`;
+}
+function vSaidas(){
   if(!viewMonth)viewMonth=today().slice(0,7);
   const list=S.expenses.filter(e=>e.date.slice(0,7)===viewMonth).sort((a,b)=>b.date.localeCompare(a.date));
   const bills=sum(S.cards,bill), avulso=sum(list.filter(e=>e.method!=='card'),e=>e.value), fixos=sum(S.fixed,f=>f.value);
@@ -281,6 +302,9 @@ const A={
     validate:v=>!v.name?'Informe o nome.':v.value<=0?'Informe o valor.':dayOk(v),onSave:v=>S.fixed.push({id:uid(),...v})})},
   editFixed(id){const f=find(S.fixed,id);form({title:'Editar gasto fixo',fields:[{k:'name',label:'Nome',value:f.name},{k:'value',label:'Valor por mês (R$)',type:'money',value:f.value},{k:'day',label:'Dia do vencimento (opcional)',type:'int',value:f.day||''},{k:'category',label:'Categoria',type:'select',options:CATS.map(c=>[c,c]),value:f.category}],
     validate:v=>!v.name?'Informe o nome.':v.value<=0?'Informe o valor.':dayOk(v),onSave:v=>Object.assign(f,v),onDelete:()=>{S.fixed=S.fixed.filter(x=>x.id!==id)}})},
+  addInc(){incForm()},
+  editInc(id){incForm(find(S.income,id))},
+  exsub(id){exsub=id;render(true)},
   addCard(){form({title:'Novo cartão',fields:[{k:'name',label:'Nome (ex.: Nubank)'},{k:'bill',label:'Fatura atual (R$)',type:'money',ph:'250'},{k:'limit',label:'Limite (R$)',type:'money',ph:'2000'}],validate:need('nome'),
     onSave:v=>S.cards.push({id:uid(),name:v.name,bill:v.bill,limit:v.limit})})},
   editCard(id){const c=find(S.cards,id);form({title:'Editar cartão',fields:[{k:'name',label:'Nome',value:c.name},{k:'bill',label:'Fatura base (R$) — sem contar gastos lançados no app',type:'money',value:c.bill},{k:'limit',label:'Limite (R$)',type:'money',value:c.limit}],validate:need('nome'),
@@ -330,6 +354,16 @@ function expForm(e){
     validate:v=>v.value<=0?'Informe o valor.':(v.method==='card'&&!v.cardId)?'Escolha um cartão (cadastre na aba Cartões).':!v.date?'Informe a data.':'',
     onSave:v=>{if(v.method!=='card')v.cardId='';if(e){const wasCard=e.method==='card';Object.assign(e,v);if(!(e.method==='card'&&wasCard))e.paid=false}else S.expenses.push({id:uid(),paid:false,...v})},
     onDelete:e?()=>{S.expenses=S.expenses.filter(x=>x.id!==e.id)}:null});
+}
+function incForm(e){
+  form({title:e?'Editar entrada':'Nova entrada',fields:[
+    {k:'desc',label:'Descrição (ex.: Venda de plano)',value:e?.desc||''},
+    {k:'value',label:'Valor (R$)',type:'money',value:e?.value||'',ph:'0,00'},
+    {k:'category',label:'Tipo',type:'select',options:INCOME_CATS.map(c=>[c,c]),value:e?.category||'Vendas'},
+    {k:'date',label:'Data',type:'date',value:e?.date||today()}],
+    validate:v=>v.value<=0?'Informe o valor.':!v.date?'Informe a data.':'',
+    onSave:v=>{if(e)Object.assign(e,v);else S.income.push({id:uid(),...v})},
+    onDelete:e?()=>{S.income=S.income.filter(x=>x.id!==e.id)}:null});
 }
 function moveForm(type,m){
   form({title:m?'Editar movimento':type==='in'?'Guardar dinheiro':'Retirar dinheiro',fields:[

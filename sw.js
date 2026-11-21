@@ -1,4 +1,4 @@
-const CACHE = 'financas-v2';
+const CACHE = 'financas-v3';
 const FILES = ['./', './index.html'];
 
 self.addEventListener('install', e => {
