@@ -1,4 +1,4 @@
-const CACHE = 'financas-v6';
+const CACHE = 'financas-v7';
 const FILES = ['./', './index.html'];
 
 self.addEventListener('install', e => {
@@ -19,12 +19,14 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const cached = await cache.match(e.request);
-    const net = fetch(e.request).then(async res => {
+    // abrir com ?parâmetros (Atalho) usa a mesma página guardada
+    const req = e.request.mode === 'navigate' ? new Request(e.request.url.split('?')[0]) : e.request;
+    const cached = await cache.match(req);
+    const net = fetch(req).then(async res => {
       if (res && res.ok) {
         const fresh = await res.clone().text();
         const old = cached ? await cached.clone().text() : null;
-        await cache.put(e.request, res.clone());
+        await cache.put(req, res.clone());
         if (old !== null && old !== fresh) {
           const clients = await self.clients.matchAll();
           clients.forEach(c => c.postMessage('update'));

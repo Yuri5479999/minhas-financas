@@ -568,13 +568,13 @@ function expForm(e){
     },
     onDelete:e?()=>{if(e.gid&&confirm('Esta compra é parcelada. OK = excluir TODAS as parcelas. Cancelar = excluir só esta.'))S.expenses=S.expenses.filter(x=>x.gid!==e.gid);else S.expenses=S.expenses.filter(x=>x.id!==e.id)}:null});
 }
-function stForm(kind,e){
-  const isS=kind==='sales';
-  form({title:e?(isS?'Editar venda':'Editar reposição'):(isS?'Nova venda':'Nova reposição'),fields:[
-    isS?{k:'desc',label:'O que vendeu? (ex.: Plano Netflix 30 dias)',value:e?.desc||''}
+function stForm(kind,e,pre){
+  const isS=kind==='sales';pre=pre||{};
+  form({title:e?(isS?'Editar venda':'Editar reposição'):pre.title||(isS?'Nova venda':'Nova reposição'),fields:[
+    isS?{k:'desc',label:'O que vendeu? (ex.: Plano Netflix 30 dias)',value:e?.desc||pre.desc||''}
        :{k:'desc',label:'O que repôs?',type:'select',options:[['Estoque de contas','Estoque de contas'],['Reembolso','Reembolso']].concat(e&&e.desc&&!['Estoque de contas','Reembolso'].includes(e.desc)?[[e.desc,e.desc]]:[]),value:e?.desc||'Estoque de contas'},
-    {k:'value',label:'Valor (R$)',type:'money',value:e?.value||'',ph:'0,00'},
-    {k:'date',label:'Data',type:'date',value:e?.date||today()}],
+    {k:'value',label:'Valor (R$)',type:'money',value:e?.value||pre.value||'',ph:'0,00'},
+    {k:'date',label:'Data',type:'date',value:e?.date||pre.date||today()}],
     validate:v=>v.value<=0?'Informe o valor.':!v.date?'Informe a data.':'',
     onSave:v=>{if(e)Object.assign(e,v);else S.store[kind].push({id:uid(),...v})},
     onDelete:e?()=>{S.store[kind]=S.store[kind].filter(x=>x.id!==e.id)}:null});
@@ -609,6 +609,18 @@ function makeIcon(){try{const c=document.createElement('canvas');c.width=c.heigh
   const l=document.createElement('link');l.rel='apple-touch-icon';l.href=c.toDataURL('image/png');document.head.appendChild(l)}catch(e){}}
 
 load();applyTheme();applyHide();applyProfile();makeIcon();render(true);
+/* Entrada automática vinda do Atalho do iPhone: ?t=sale|restock&v=7,00&d=2026-11-20 */
+(function(){try{
+  const q=new URLSearchParams(location.search),t=q.get('t');if(!t)return;
+  history.replaceState(null,'',location.pathname);
+  let raw=(q.get('v')||'').replace(/[^\d.,]/g,'');
+  const v=raw.includes(',')?num(raw):parseFloat(raw)||0;
+  const d=/^\d{4}-\d{2}-\d{2}$/.test(q.get('d')||'')?q.get('d'):today();
+  if(!(v>0))return;
+  S.profile='store';save();applyProfile();tab=t==='sale'?'sled':'shome';ssub=t==='sale'?'sale':'restock';render(true);
+  setTimeout(()=>{if(t==='sale')stForm('sales',null,{title:'💰 Venda recebida (Mercado Pago)',desc:'Venda Pix',value:v,date:d});
+    else stForm('restock',null,{title:'📦 Pix enviado — é reposição?',value:v,date:d})},350);
+}catch(e){}})();
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').catch(()=>{})});navigator.serviceWorker.addEventListener('message',e=>{if(e.data==='update')toast('Nova versão disponível',{label:'Atualizar',fn:()=>location.reload()})})}
 </script>
 </body>
