@@ -571,7 +571,8 @@ function expForm(e){
 function stForm(kind,e){
   const isS=kind==='sales';
   form({title:e?(isS?'Editar venda':'Editar reposição'):(isS?'Nova venda':'Nova reposição'),fields:[
-    {k:'desc',label:isS?'O que vendeu? (ex.: Plano Netflix 30 dias)':'O que repôs? (ex.: Estoque de contas)',value:e?.desc||''},
+    isS?{k:'desc',label:'O que vendeu? (ex.: Plano Netflix 30 dias)',value:e?.desc||''}
+       :{k:'desc',label:'O que repôs?',type:'select',options:[['Estoque de contas','Estoque de contas'],['Reembolso','Reembolso']].concat(e&&e.desc&&!['Estoque de contas','Reembolso'].includes(e.desc)?[[e.desc,e.desc]]:[]),value:e?.desc||'Estoque de contas'},
     {k:'value',label:'Valor (R$)',type:'money',value:e?.value||'',ph:'0,00'},
     {k:'date',label:'Data',type:'date',value:e?.date||today()}],
     validate:v=>v.value<=0?'Informe o valor.':!v.date?'Informe a data.':'',
