@@ -386,6 +386,7 @@ function vSHome(){
   <div class="card hero"><div class="mu">🏪 Lucro de ${monthName(m)}</div><div class="big ${d.lucro>=0?'g':'r'}">${cnt(d.lucro)}</div>
     <div class="mu" style="margin-top:4px">Vendas − Reposição${d.margem!==null?' · margem '+d.margem.toFixed(0)+'%':''}</div></div>
   <div class="btns" style="margin:0 0 12px"><button class="btn gn" data-a="addSale">+ Venda</button><button class="btn rd" data-a="addRest">+ Reposição</button></div>
+  <div class="btns" style="margin:0 0 12px"><button class="btn sec" data-a="paste">📋 Colar do Atalho (Mercado Pago)</button></div>
   <div class="grid2"><div class="card"><div class="mu">Vendas</div><div class="mid g">${cnt(d.v)}</div><div class="mu">${d.n} venda${d.n===1?'':'s'}</div></div>
     <div class="card"><div class="mu">Reposição</div><div class="mid r">${cnt(d.r)}</div><div class="mu">${d.re.length} lançamento${d.re.length===1?'':'s'}</div></div></div>
   <div class="card" style="margin-top:12px"><div class="row"><span class="mu">Saldo da loja (tudo até hoje)</span><b class="mid ${saldo>=0?'g':'r'}">${brl(saldo)}</b></div></div>
@@ -474,6 +475,18 @@ const A={
   mprev(){const fm=S.profile==='store'?sFirstM():firstM();if(closeMonth>fm){closeMonth=prevM(closeMonth);render(true)}},
   mnext(){if(closeMonth<curM()){closeMonth=nextM(closeMonth);render(true)}},
   ssub(id){ssub=id;render(true)},
+  async paste(){
+    let t='';
+    try{t=await navigator.clipboard.readText()}catch(e){toast('Não consegui ler o que foi copiado. Permita colar e tente de novo.');return}
+    const m=/NEXO\|(sale|restock)\|([\d.,]+)\|(\d{4}-\d{2}-\d{2})/.exec(t||'');
+    if(!m){toast('Nada do Atalho para colar ainda.');return}
+    const v=m[2].includes(',')?num(m[2]):parseFloat(m[2])||0;
+    if(!(v>0)){toast('Valor inválido.');return}
+    try{navigator.clipboard.writeText('')}catch(e){}
+    ssub=m[1]==='sale'?'sale':'restock';
+    if(m[1]==='sale')stForm('sales',null,{title:'💰 Venda recebida (Mercado Pago)',desc:'Venda Pix',value:v,date:m[3]});
+    else stForm('restock',null,{title:'📦 Pix enviado — é reposição?',value:v,date:m[3]})
+  },
   addSale(){stForm('sales')},editSale(id){stForm('sales',find(S.store.sales,id))},
   addRest(){stForm('restock')},editRest(id){stForm('restock',find(S.store.restock,id))},
   toastAct(){const f=TOAST_ACT;$('#toast').className='';if(f)f()},
