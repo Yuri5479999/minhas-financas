@@ -581,14 +581,15 @@ function expForm(e){
     },
     onDelete:e?()=>{if(e.gid&&confirm('Esta compra é parcelada. OK = excluir TODAS as parcelas. Cancelar = excluir só esta.'))S.expenses=S.expenses.filter(x=>x.gid!==e.gid);else S.expenses=S.expenses.filter(x=>x.id!==e.id)}:null});
 }
+const SALE_ITEMS=['Netflix','Prime Vídeo','Paramount','Max','Disney','Globo','Crunchyroll','Claro TV','Vivo Play','YouTube','ChatGPT','Super Duolingo','Gemini'];
 function stForm(kind,e,pre){
   const isS=kind==='sales';pre=pre||{};
   form({title:e?(isS?'Editar venda':'Editar reposição'):pre.title||(isS?'Nova venda':'Nova reposição'),fields:[
-    isS?{k:'desc',label:'O que vendeu? (ex.: Plano Netflix 30 dias)',value:e?.desc||pre.desc||''}
+    isS?{k:'desc',label:'O que vendeu?',type:'select',options:[['','Selecione…']].concat(SALE_ITEMS.map(x=>[x,x])).concat(e&&e.desc&&!SALE_ITEMS.includes(e.desc)?[[e.desc,e.desc]]:[]),value:e?.desc||''}
        :{k:'desc',label:'O que repôs?',type:'select',options:[['Estoque de contas','Estoque de contas'],['Reembolso','Reembolso']].concat(e&&e.desc&&!['Estoque de contas','Reembolso'].includes(e.desc)?[[e.desc,e.desc]]:[]),value:e?.desc||'Estoque de contas'},
     {k:'value',label:'Valor (R$)',type:'money',value:e?.value||pre.value||'',ph:'0,00'},
     {k:'date',label:'Data',type:'date',value:e?.date||pre.date||today()}],
-    validate:v=>v.value<=0?'Informe o valor.':!v.date?'Informe a data.':'',
+    validate:v=>isS&&!v.desc?'Escolha o que vendeu.':v.value<=0?'Informe o valor.':!v.date?'Informe a data.':'',
     onSave:v=>{if(e)Object.assign(e,v);else S.store[kind].push({id:uid(),...v})},
     onDelete:e?()=>{S.store[kind]=S.store[kind].filter(x=>x.id!==e.id)}:null});
 }
