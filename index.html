@@ -537,7 +537,7 @@ async function gModel(key,force){
   try{const c=JSON.parse(localStorage.getItem(GMODEL)||'null');if(!force&&c&&Date.now()-c.t<6048e5)return c.m}catch(e){}
   let best='gemini-2.5-flash';
   try{
-    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',{headers:{'x-goog-api-key':key}});
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(key));
     if(r.ok){const j=await r.json();
       const c=(j.models||[]).filter(x=>(x.supportedGenerationMethods||[]).includes('generateContent')&&/^models\/gemini-[\d.]+-flash$/.test(x.name)).map(x=>x.name.replace('models/',''));
       c.sort((a,b)=>parseFloat(b.split('-')[1])-parseFloat(a.split('-')[1]));if(c.length)best=c[0]}
@@ -548,8 +548,14 @@ async function gModel(key,force){
 async function callGemini(key,hist,retry){
   const model=await gModel(key,retry);
   const sys=`Você é o assistente financeiro de ${S.name||'um usuário'}, dentro do app Minhas Finanças. Responda em português do Brasil, de forma curta e direta (até uns 120 palavras), com valores em R$. Use SOMENTE os dados abaixo; se faltar informação, diga o que falta. Confira as contas antes de responder. Não recomende investimentos específicos.\n\nDADOS DO APP:\n${finCtx()}`;
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},
-    body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist.map(m=>({role:m.r==='u'?'user':'model',parts:[{text:m.t}]})),generationConfig:{temperature:.5,maxOutputTokens:1500}})});
+  const body=JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist.map(m=>({role:m.r==='u'?'user':'model',parts:[{text:m.t}]})),generationConfig:{temperature:.5,maxOutputTokens:1500}});
+  const base=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  let r;
+  try{r=await fetch(base+'?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body})}
+  catch(e1){
+    try{r=await fetch(base,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body})}
+    catch(e2){throw new Error('Não consegui conectar ao Gemini ('+(e2.message||e1.message||'falha de rede')+'). Confira a internet e, se usar VPN, DNS filtrado ou bloqueador de conteúdo, desligue e tente de novo.')}
+  }
   if(r.status===404&&!retry)return callGemini(key,hist,true);
   if(!r.ok){let msg='';try{msg=(await r.json()).error?.message||''}catch(e){}
     if(r.status===400&&/API key/i.test(msg))throw new Error('Chave inválida. Toque em Ajustes (⚙️) e cole a chave de novo.');

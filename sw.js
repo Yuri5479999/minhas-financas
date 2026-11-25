@@ -1,4 +1,4 @@
-const CACHE = 'financas-v9';
+const CACHE = 'financas-v10';
 const FILES = ['./', './index.html', './fonts/Inter-Regular.woff', './fonts/Inter-Medium.woff', './fonts/Inter-SemiBold.woff', './fonts/Inter-Bold.woff', './fonts/Inter-ExtraBold.woff', './fonts/InstrumentSerif-Italic.woff'];
 
 self.addEventListener('install', e => {
@@ -17,6 +17,7 @@ self.addEventListener('activate', e => {
 // Se achar uma versão nova, avisa o app para mostrar "Nova versão disponível".
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  if (new URL(e.request.url).origin !== self.location.origin) return;  // APIs externas (Gemini) não passam pelo cache
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     // abrir com ?parâmetros (Atalho) usa a mesma página guardada
