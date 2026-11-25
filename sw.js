@@ -1,5 +1,5 @@
-const CACHE = 'financas-v8';
-const FILES = ['./', './index.html'];
+const CACHE = 'financas-v9';
+const FILES = ['./', './index.html', './fonts/Inter-Regular.woff', './fonts/Inter-Medium.woff', './fonts/Inter-SemiBold.woff', './fonts/Inter-Bold.woff', './fonts/Inter-ExtraBold.woff', './fonts/InstrumentSerif-Italic.woff'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
