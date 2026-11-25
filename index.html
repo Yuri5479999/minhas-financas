@@ -484,6 +484,7 @@ function vSMonth(){
 }
 
 /* ---------- Chat com o Gemini ---------- */
+const APP_VER='25/11 · 3';
 const GKEY='nexo_gemini_key',GMODEL='nexo_gemini_model';
 const gKey=()=>{try{return localStorage.getItem(GKEY)||''}catch(e){return''}};
 const chatK=()=>'nexo_chat_v1_'+(S.profile==='store'?'store':'personal');
@@ -734,7 +735,8 @@ const A={
     <textarea id="rs" placeholder="Cole o backup aqui"></textarea>
     <div class="btns"><button class="btn" data-a="restore">Restaurar</button></div>
     <div class="btns"><button class="btn del" data-a="wipe">Apagar todos os dados</button></div>
-    <div class="btns"><button class="btn sec" data-a="close">Fechar</button></div>`);
+    <div class="btns"><button class="btn sec" data-a="close">Fechar</button></div>
+    <div class="mu" style="text-align:center;margin-top:12px">Versão do app: ${APP_VER}</div>`);
     const nm=$('#nm');if(nm)nm.onchange=()=>{S.name=nm.value.trim();save();render()};
     $('#bk').value=JSON.stringify(S);const rf=$('#rf');if(rf)rf.onchange=ev=>{const f=ev.target.files[0];if(f)f.text().then(t=>{$('#rs').value=t})};},
   setTheme(id){S.theme=id;save();applyTheme();A.settings()},
