@@ -120,7 +120,7 @@ html[data-t=light] .card{background:color-mix(in srgb,var(--card) 78%,transparen
 html[data-t=light] .hero{background:linear-gradient(135deg,color-mix(in srgb,var(--gn) 14%,#fff),color-mix(in srgb,var(--b1) 8%,#fff))}
 .card[data-a]{transition:transform .15s,background-color .3s}.card[data-a]:active{transform:scale(.985)}
 h2 em,.ptitle em,.ct em{font-family:"Instrument Serif",ui-serif,"New York",Georgia,serif;font-style:italic;font-weight:400;font-size:1.2em;color:var(--ac);letter-spacing:0}
-.ptitle{font-size:28px;font-weight:750;letter-spacing:-.8px;margin:2px 2px 12px;line-height:1.1}
+.ptitle{font-size:25px;font-weight:750;letter-spacing:-.6px;margin:2px 2px 12px;line-height:1.12}
 .ct{font-size:17px;margin:0 0 4px;font-weight:700;letter-spacing:-.3px}
 .donutw{position:relative;width:184px;height:184px;margin:8px auto 14px}
 .donutw svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
@@ -144,7 +144,7 @@ h2 em,.ptitle em,.ct em{font-family:"Instrument Serif",ui-serif,"New York",Georg
 #app.still .dseg,#app.still .rseg,#app.still .leg .lb i{animation:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
 nav button{font-size:10.5px}nav button span{font-size:20px}
-.bub{max-width:88%;padding:10px 13px;border-radius:18px;margin:0 0 10px;line-height:1.45;font-size:15px;word-wrap:break-word;animation:rise .3s both}
+.bub{max-width:90%;padding:9px 13px;border-radius:17px;margin:0 0 9px;line-height:1.42;font-size:14px;letter-spacing:-.005em;word-wrap:break-word;animation:rise .3s both}
 .bub.u{margin-left:auto;background:linear-gradient(135deg,var(--g1),var(--g2));color:var(--on);border-bottom-right-radius:6px;font-weight:500}
 .bub.a{background:var(--card);border:1px solid var(--bd);border-bottom-left-radius:6px}
 .bub.a ul{margin:6px 0 2px;padding-left:18px}.bub.a p{margin:0 0 6px}.bub.a p:last-child{margin:0}
@@ -152,10 +152,12 @@ nav button{font-size:10.5px}nav button span{font-size:20px}
 .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
 @keyframes blink{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.chips button{background:var(--card2);color:var(--tx);border:1px solid var(--bd);border-radius:99px;padding:8px 13px;font-size:13.5px}
+.chips button{background:var(--card2);color:var(--tx);border:1px solid var(--bd);border-radius:99px;padding:7px 12px;font-size:13px}
 .chips button:active{transform:scale(.96)}
-.chatbar{position:sticky;bottom:calc(88px + env(safe-area-inset-bottom));display:flex;gap:8px;margin-top:8px;padding:8px;background:color-mix(in srgb,var(--card) 90%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--bd);border-radius:20px;z-index:3}
-.chatbar input{margin:0;border-radius:14px}.chatbar button{width:48px;flex:none;border-radius:14px;padding:0;font-size:20px}
+.chatbar{position:fixed;left:12px;right:12px;max-width:616px;margin:0 auto;bottom:calc(var(--kb,0px) + 84px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:8px;padding:6px;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--bd);border-radius:20px;z-index:7}
+body.kb .chatbar{bottom:calc(var(--kb,0px) + 8px)}body.kb nav{display:none}
+.chatpad{height:76px}
+.chatbar input{margin:0;border-radius:14px;padding:10px 13px;min-width:0}.chatbar button{width:44px;height:44px;flex:none;border-radius:14px;padding:0;font-size:19px}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes pop{0%{transform:scale(.7)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
@@ -484,7 +486,7 @@ function vSMonth(){
 }
 
 /* ---------- Chat com o Gemini ---------- */
-const APP_VER='25/11 · 3';
+const APP_VER='25/11 · 4';
 const GKEY='nexo_gemini_key',GMODEL='nexo_gemini_model';
 const gKey=()=>{try{return localStorage.getItem(GKEY)||''}catch(e){return''}};
 const chatK=()=>'nexo_chat_v1_'+(S.profile==='store'?'store':'personal');
@@ -502,16 +504,21 @@ function mdLite(t){
 const bubble=m=>`<div class="bub ${m.r}">${m.r==='a'?mdLite(m.t):esc(m.t)}</div>`;
 function vChat(){
   const key=gKey(),msgs=chatLoad(),chips=S.profile==='store'?CHIPS_S:CHIPS_P;
-  return `<div class="ptitle">Converse com o <em>Gemini</em></div>
+  return `<div class="row" style="align-items:flex-start"><div class="ptitle">Converse com o <em>Gemini</em></div>${msgs.length?'<a class="mu" data-a="chatClear" style="text-decoration:underline;white-space:nowrap;padding-top:8px">Limpar</a>':''}</div>
   ${key?'':`<div class="card note"><b>Conecte o Gemini</b>
     <div class="mu" style="margin:6px 0 10px">1. Abra aistudio.google.com/app/apikey e crie uma chave (tem plano grátis, com limites).<br>2. Toque abaixo e cole a chave.<br>A chave fica só neste aparelho. Ao conversar, um resumo das suas finanças é enviado ao Google.</div>
     <button class="btn" data-a="gkey">Colar minha chave</button></div>`}
   <div id="chatlog">${msgs.length?msgs.map(bubble).join(''):`<div class="card"><div class="mu">Pergunte sobre ${S.profile==='store'?'as vendas e a reposição da loja':'seus gastos, cartões, metas e sobra do mês'}. Eu respondo com base nos dados do app.</div><div class="chips">${chips.map((c,i)=>`<button data-a="chip" data-id="${i}">${c}</button>`).join('')}</div></div>`}</div>
   <form id="chatf" class="chatbar"><input id="chatin" placeholder="Pergunte alguma coisa…" autocomplete="off" enterkeyhint="send"><button class="btn" id="chatsend" aria-label="Enviar">↑</button></form>
-  ${msgs.length?'<div class="mu" style="text-align:center;margin-top:10px"><a data-a="chatClear" style="text-decoration:underline">Limpar conversa</a></div>':''}`;
+  <div class="chatpad"></div>`;
 }
+function kbSync(){const v=window.visualViewport;if(!v)return;
+  const kb=Math.max(0,window.innerHeight-v.height-v.offsetTop);
+  document.documentElement.style.setProperty('--kb',kb+'px');document.body.classList.toggle('kb',kb>80&&tab==='chat')}
+if(window.visualViewport){visualViewport.addEventListener('resize',kbSync);visualViewport.addEventListener('scroll',kbSync)}
 function initChat(){
   const f=$('#chatf');if(!f)return;
+  const ci=$('#chatin');ci.addEventListener('focus',()=>setTimeout(()=>{kbSync();scrollTo(0,document.body.scrollHeight)},300));ci.addEventListener('blur',()=>setTimeout(kbSync,100));
   f.onsubmit=ev=>{ev.preventDefault();const i=$('#chatin'),t=i.value.trim();if(t){i.value='';sendChat(t)}};
   const lg=$('#chatlog');if(lg&&lg.querySelector('.bub'))setTimeout(()=>scrollTo(0,document.body.scrollHeight),50);
 }
@@ -609,7 +616,7 @@ function render(anim){
     if(!REDUCED)app.querySelectorAll('.cnt').forEach(countUp);
   }
   const mon=$('#mon');if(mon)mon.onchange=()=>{viewMonth=mon.value||today().slice(0,7);render()};
-  if(tab==='chat')initChat();
+  if(tab==='chat')initChat();else document.body.classList.remove('kb');
   const qi=$('#q');if(qi){qi.oninput=()=>{Q=qi.value;updList()};$('#fcat').onchange=e=>{FC=e.target.value;updList()}}
 }
 
