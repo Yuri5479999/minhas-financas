@@ -105,6 +105,37 @@ html:not([data-t]){background:#0a1018}
 #toast button{background:none;border:0;color:#38bdf8;font-weight:750;font-size:14px;padding:0}
 #app>*{animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
 #app.still>*,#app.still .bar i{animation:none}
+
+/* ---- visual de painel: vidro, rosca, anéis ---- */
+body::after{content:"";position:fixed;right:-30%;top:30%;width:70%;height:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--b2) 14%,transparent),transparent);pointer-events:none;z-index:0}
+.card{background:linear-gradient(150deg,color-mix(in srgb,var(--card) 94%,#fff 6%),var(--card));box-shadow:var(--sh),inset 0 1px 0 rgba(255,255,255,.06)}
+html[data-t=light] .card{background:color-mix(in srgb,var(--card) 78%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-color:rgba(255,255,255,.7);box-shadow:var(--sh),inset 0 1px 0 #fff}
+html[data-t=light] .hero{background:linear-gradient(135deg,color-mix(in srgb,var(--gn) 14%,#fff),color-mix(in srgb,var(--b1) 8%,#fff))}
+.card[data-a]{transition:transform .15s,background-color .3s}.card[data-a]:active{transform:scale(.985)}
+h2 em,.ptitle em,.ct em{font-family:ui-serif,"New York",Georgia,"Times New Roman",serif;font-style:italic;font-weight:500;color:var(--ac);letter-spacing:0}
+.ptitle{font-size:28px;font-weight:750;letter-spacing:-.8px;margin:2px 2px 12px;line-height:1.1}
+.ct{font-size:17px;margin:0 0 4px;font-weight:700;letter-spacing:-.3px}
+.donutw{position:relative;width:184px;height:184px;margin:8px auto 14px}
+.donutw svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.donutw .ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 38px}
+.donutw .ctr b{font-size:20px;letter-spacing:-.5px;line-height:1.1}
+.dseg{animation:dseg .95s cubic-bezier(.3,.7,.2,1) both;transition:opacity .2s}
+@keyframes dseg{from{stroke-dasharray:0 var(--C)}to{stroke-dasharray:var(--l) var(--C)}}
+.rseg{animation:dseg 1s cubic-bezier(.3,.7,.2,1) .2s both}
+.ringw{position:relative;width:62px;height:62px;flex:none}
+.ringw svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ringw span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;letter-spacing:-.3px}
+.leg{padding:8px 0 2px}
+.leg .lr{display:flex;align-items:center;gap:8px}
+.leg .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.leg .ln{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.leg .lv{font-weight:650;font-size:14px}
+.leg .lp{width:38px;text-align:right;color:var(--mu);font-size:12.5px}
+.leg .lb{height:4px;border-radius:99px;background:var(--card2);margin:6px 0 0 17px;overflow:hidden}
+.leg .lb i{display:block;height:100%;border-radius:99px;transform-origin:left;animation:grow .9s cubic-bezier(.2,.8,.2,1) .3s both}
+#app>*:nth-child(2){animation-delay:.05s}#app>*:nth-child(3){animation-delay:.1s}#app>*:nth-child(4){animation-delay:.15s}#app>*:nth-child(5){animation-delay:.2s}#app>*:nth-child(6){animation-delay:.25s}#app>*:nth-child(n+7){animation-delay:.3s}
+#app.still .dseg,#app.still .rseg,#app.still .leg .lb i{animation:none}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes pop{0%{transform:scale(.7)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
@@ -168,6 +199,21 @@ const resTotal=pot=>sum(S.reserve.moves.filter(m=>!pot||m.pot===pot),m=>m.type==
 const savedIn=m=>sum(S.reserve.moves.filter(x=>x.date.slice(0,7)===m),x=>x.type==='in'?x.value:-x.value)+sum(S.goalLog.filter(x=>x.date.slice(0,7)===m),x=>x.amount);
 const incomeIn=m=>sum(S.income.filter(i=>i.date.slice(0,7)===m),i=>i.value);
 const cardName=id=>(S.cards.find(c=>c.id===id)||{}).name||'Cartão removido';
+
+const PAL=['#38bdf8','#a78bfa','#34d399','#fbbf24','#f87171','#fb923c','#22d3ee','#f472b6','#94a3b8'];
+function donut(items,label,center){
+  items=items.filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);const tot=sum(items,x=>x[1]);if(tot<=0)return '';
+  if(items.length>6){const rest=sum(items.slice(6),x=>x[1]);items=items.slice(0,6).concat([['Demais',rest]])}
+  const R=72,C=2*Math.PI*R;let off=0;
+  const segs=items.map(([k,v],i)=>{const fr=v/tot,l=Math.max(.5,fr*C-(items.length>1?3:0)),col=k==='Demais'?PAL[8]:PAL[i%8];
+    const el=`<circle class="dseg" cx="92" cy="92" r="${R}" fill="none" stroke="${col}" stroke-width="18" stroke-dasharray="${l.toFixed(2)} ${(C-l).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" style="--l:${l.toFixed(2)}px;--C:${C.toFixed(2)}px;animation-delay:${(.1+i*.09).toFixed(2)}s"/>`;off+=fr*C;return el}).join('');
+  const leg=items.map(([k,v],i)=>{const col=k==='Demais'?PAL[8]:PAL[i%8],pc=v/tot*100;
+    return `<div class="leg"><div class="lr"><span class="dot" style="background:${col}"></span><span class="ln">${esc(k)}</span><span class="lv">${brl(v)}</span><span class="lp">${pc.toFixed(0)}%</span></div><div class="lb"><i style="width:${pc}%;background:${col}"></i></div></div>`}).join('');
+  return `<div class="donutw"><svg viewBox="0 0 184 184"><circle cx="92" cy="92" r="${R}" fill="none" stroke="var(--card2)" stroke-width="18"/>${segs}</svg><div class="ctr"><span class="mu">${esc(label)}</span><b>${center}</b></div></div>${leg}`;
+}
+function ring(p,color,txt){p=Math.max(0,Math.min(100,p));const R=26,C=2*Math.PI*R,l=Math.max(.1,C*p/100);
+  return `<div class="ringw"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="${R}" fill="none" stroke="var(--card2)" stroke-width="7"/>${p>0?`<circle class="rseg" cx="32" cy="32" r="${R}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${l.toFixed(2)} ${C.toFixed(2)}" style="--l:${l.toFixed(2)}px;--C:${C.toFixed(2)}px"/>`:''}</svg><span>${txt}</span></div>`}
+const saleDonut=sa=>{const o={};sa.forEach(x=>{const k=x.desc||'Venda';o[k]=(o[k]||0)+x.value});const t=sum(sa,x=>x.value);return t>0?`<div class="card"><h3 class="ct">Vendas por <em>produto</em></h3>${donut(Object.entries(o),'vendas',cnt(t))}</div>`:''};
 const bar=(p,color)=>`<div class="bar ${color||''}"><i style="width:${Math.max(0,Math.min(100,p))}%"></i></div>`;
 function payInfo(){
   const d=S.salary.day;if(!d)return 'Defina o dia do pagamento';
@@ -241,8 +287,8 @@ function vHome(){
     ${entrou>0?bar(gasto/entrou*100,'r')+`<div class="mu">${(gasto/entrou*100).toFixed(0)}% do que entrou</div>`:'<div class="mu" style="margin-top:8px">Cadastre seu salário ou uma entrada para ver a sobra.</div>'}
     <div class="mu" style="margin-top:6px">Faturas ${brl(bills+paidM)} · Fixos ${brl(fixos)} · Avulsos ${brl(avulso)}${extra?` · Extras +${brl(extra)}`:''}</div></div>
   ${perDay}
-  <div class="card"><div class="row"><b>Limite dos cartões</b><span class="mu">${brl(lim-bills-futs)} livre</span></div>
-    ${bar(lim?(bills+futs)/lim*100:0,'r')}<div class="mu"><span class="r">${brl(bills+futs)}</span> usados de ${brl(lim)}${futs>0?` · inclui ${brl(futs)} em parcelas futuras`:''}</div></div>
+  ${Object.values(cs).some(v=>v>0)?`<div class="card"><h3 class="ct">Onde foi seu <em>dinheiro</em></h3>${donut(Object.entries(cs),'no mês',cnt(sum(Object.values(cs),v=>v)))}</div>`:''}
+  <div class="card"><div class="row" style="gap:14px"><div style="flex:1;min-width:0"><b>Limite dos cartões</b><div class="mid g" style="margin:2px 0">${brl(lim-bills-futs)} <span class="mu" style="font-weight:400">livre</span></div><div class="mu"><span class="r">${brl(bills+futs)}</span> usados de ${brl(lim)}${futs>0?` · inclui ${brl(futs)} em parcelas futuras`:''}</div></div>${ring(lim?(bills+futs)/lim*100:0,'var(--rd)',(lim?Math.round((bills+futs)/lim*100):0)+'%')}</div></div>
   <div class="card"><div class="row"><div class="mu">🏛️ Cofre — tudo guardado</div></div><div class="big g">${cnt(res+inv+gs)}</div>
     <div class="grid3"><div><div class="mu">Reserva</div><b class="g">${brl(res)}</b></div><div><div class="mu">Metas</div><b class="g">${brl(gs)}</b></div><div><div class="mu">Investido</div><b class="g">${brl(inv)}</b></div></div>
     ${gt?bar(gs/gt*100,'g')+`<div class="mu">Metas: ${(gs/gt*100).toFixed(0)}% concluído</div>`:''}</div>
@@ -258,7 +304,7 @@ function vCards(){
     <div class="row"><span class="mu">${p.toFixed(0)}% do limite usado</span><span class="mu">Disponível <b class="g">${brl(c.limit-used)}</b></span></div>
     ${f>0?`<div class="mu" style="margin-top:6px">📆 Parcelas futuras: <b class="r">${brl(f)}</b></div>`:''}
     <div class="btns"><button class="btn sec sm" data-a="editCard" data-id="${c.id}">Editar</button><button class="btn rd sm" data-a="payCard" data-id="${c.id}">Fatura paga</button></div></div>`}).join('');
-  return `<div class="sec-title"><h2>Seus cartões</h2><button class="btn sm" data-a="addCard">+ Cartão</button></div>`+(items||'<div class="empty"><div class="ei">💳</div>Nenhum cartão ainda.<br>Toque em “+ Cartão”.</div>');
+  return `<div class="sec-title"><h2>Seus <em>cartões</em></h2><button class="btn sm" data-a="addCard">+ Cartão</button></div>`+(items||'<div class="empty"><div class="ei">💳</div>Nenhum cartão ainda.<br>Toque em “+ Cartão”.</div>');
 }
 
 function vSpend(){
@@ -315,11 +361,11 @@ function vCofre(){
 
 function vGoals(){
   const items=S.goals.map(g=>{const p=g.target?g.saved/g.target*100:0,done=g.saved>=g.target&&g.target>0;
-    return `<div class="card"><div class="row"><b class="mid">${esc(g.name)}</b><span class="${done?'g':'mu'}">${done?'✅ Concluída':p.toFixed(0)+'%'}</span></div>
-    ${bar(p,'g')}<div class="row"><span class="mu">Guardado <b class="g">${brl(g.saved)}</b></span><span class="mu">Meta ${brl(g.target)}</span></div>
+    return `<div class="card"><div class="row" style="gap:14px"><div style="flex:1;min-width:0"><b class="mid">${esc(g.name)}</b>${done?'<div class="g">✅ Concluída</div>':''}</div>${ring(p,'var(--gn)',done?'✓':p.toFixed(0)+'%')}</div>
+    <div class="row" style="margin-top:6px"><span class="mu">Guardado <b class="g">${brl(g.saved)}</b></span><span class="mu">Meta ${brl(g.target)}</span></div>
     <div class="mu">${goalHint(g,done)}</div>
     <div class="btns"><button class="btn sec sm" data-a="editGoal" data-id="${g.id}">Editar</button><button class="btn gn sm" data-a="depGoal" data-id="${g.id}">+ Adicionar valor</button></div></div>`}).join('');
-  return `<div class="sec-title"><h2>Suas metas</h2><button class="btn sm" data-a="addGoal">+ Meta</button></div>`+(items||'<div class="empty"><div class="ei">🎯</div>Nenhuma meta ainda.<br>Ex.: Celular — R$ 2.000.</div>');
+  return `<div class="sec-title"><h2>Suas <em>metas</em></h2><button class="btn sm" data-a="addGoal">+ Meta</button></div>`+(items||'<div class="empty"><div class="ei">🎯</div>Nenhuma meta ainda.<br>Ex.: Celular — R$ 2.000.</div>');
 }
 
 function vReserve(){
@@ -366,7 +412,7 @@ function vMonth(){
   const pm=prevM(m),pd=pm>=fm?sumMonth(pm):null;let cmp='';
   if(pd&&pd.gasto>0){const diff=d.gasto-pd.gasto,pct=Math.round(Math.abs(diff)/pd.gasto*100);cmp=diff===0?`<div class="mu" style="margin-top:10px">Mesmo gasto de ${monthName(pm)}.</div>`:`<div class="mu" style="margin-top:10px"><b class="${diff<0?'g':'r'}">${brl(Math.abs(diff))} a ${diff<0?'menos':'mais'}</b> que em ${monthName(pm)} (${diff<0?'−':'+'}${pct}%)</div>`}
   const all=Object.entries(catSpent(m)).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]),ct=sum(all,x=>x[1]);
-  return nav+`
+  return `<div class="ptitle">Fechamento <em>do mês</em></div>`+nav+`
   <div class="card hero"><div class="mu">Sobrou no mês</div><div class="big ${d.sobra>=0?'g':'r'}">${cnt(d.sobra)}</div>
     <div class="mu" style="margin-top:6px">Entrou ${brl(d.entrou)} − Saiu ${brl(d.gasto)}</div>
     ${d.guard>0?`<div class="mu" style="margin-top:4px">Você guardou <b class="g">${brl(d.guard)}</b> · livre: ${brl(d.livre)}</div>`:''}</div>
@@ -376,13 +422,13 @@ function vMonth(){
     ${rowL('Faturas dos cartões',d.fat,'r')}${rowL('Gastos fixos',d.fix,'r')}${rowL('Avulsos (dinheiro, débito, Pix)',d.avu,'r')}${cmp}</div>
   <div class="card"><div class="row"><b>🏛️ Guardado</b><b class="g">${brl(d.guard)}</b></div>
     ${resM!==0?rowL('Reserva e emergência',resM,resM>0?'g':'r'):''}${goalM!==0?rowL('Metas',goalM,goalM>0?'g':'r'):''}${resM===0&&goalM===0?'<div class="mu" style="margin-top:8px">Nada guardado neste mês.</div>':''}</div>
-  ${all.length?`<div class="card"><b>🏷️ Onde mais gastou</b>${all.slice(0,5).map(([k,v],i)=>`<div class="row" style="padding-top:8px"><span>${i+1}. ${esc(k)}</span><span><b class="r">${brl(v)}</b> <span class="mu">${Math.round(v/ct*100)}%</span></span></div>`).join('')}</div>`:''}`;
+  ${all.length?`<div class="card"><h3 class="ct">Onde foi seu <em>dinheiro</em></h3>${donut(all,'gastou',cnt(ct))}</div>`:''}`;
 }
 const sMonth=m=>{const sa=S.store.sales.filter(x=>x.date.slice(0,7)===m),re=S.store.restock.filter(x=>x.date.slice(0,7)===m),v=sum(sa,x=>x.value),r=sum(re,x=>x.value);return{m,sa,re,v,r,lucro:v-r,n:sa.length,ticket:sa.length?v/sa.length:0,maior:sa.length?Math.max(...sa.map(x=>x.value)):0,margem:v>0?(v-r)/v*100:null}};
 function vSHome(){
   const m=curM(),d=sMonth(m),saldo=sum(S.store.sales,x=>x.value)-sum(S.store.restock,x=>x.value);
   const last=[...S.store.sales.map(x=>({...x,k:'s'})),...S.store.restock.map(x=>({...x,k:'r'}))].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
-  return `
+  return `<div class="ptitle">Sua <em>loja</em></div>
   <div class="card hero"><div class="mu">🏪 Lucro de ${monthName(m)}</div><div class="big ${d.lucro>=0?'g':'r'}">${cnt(d.lucro)}</div>
     <div class="mu" style="margin-top:4px">Vendas − Reposição${d.margem!==null?' · margem '+d.margem.toFixed(0)+'%':''}</div></div>
   <div class="btns" style="margin:0 0 12px"><button class="btn gn" data-a="addSale">+ Venda</button><button class="btn rd" data-a="addRest">+ Reposição</button></div>
@@ -390,6 +436,7 @@ function vSHome(){
   <div class="grid2"><div class="card"><div class="mu">Vendas</div><div class="mid g">${cnt(d.v)}</div><div class="mu">${d.n} venda${d.n===1?'':'s'}</div></div>
     <div class="card"><div class="mu">Reposição</div><div class="mid r">${cnt(d.r)}</div><div class="mu">${d.re.length} lançamento${d.re.length===1?'':'s'}</div></div></div>
   <div class="card" style="margin-top:12px"><div class="row"><span class="mu">Saldo da loja (tudo até hoje)</span><b class="mid ${saldo>=0?'g':'r'}">${brl(saldo)}</b></div></div>
+  ${saleDonut(d.sa)}
   <div class="card"><b>Últimos lançamentos</b>${last.map(x=>`<div class="item" data-a="${x.k==='s'?'editSale':'editRest'}" data-id="${x.id}"><div class="l"><b>${esc(x.desc||(x.k==='s'?'Venda':'Reposição'))}</b><span class="pill">${x.k==='s'?'Venda':'Reposição'}</span><span class="mu">${fmtDate(x.date)}</span></div><b class="${x.k==='s'?'g':'r'}">${x.k==='s'?'+':'−'}${brl(x.value)}</b></div>`).join('')||'<div class="empty"><div class="ei">🏪</div>Nenhum lançamento ainda.<br>Toque em “+ Venda” ou “+ Reposição”.</div>'}</div>`;
 }
 function vSLed(){
@@ -408,11 +455,12 @@ function vSMonth(){
   if(d.v===0&&d.r===0)return nav+`<div class="empty"><div class="ei">📅</div>Sem lançamentos em ${monthName(m)}.</div>`;
   const pm=prevM(m),pd=pm>=fm?sMonth(pm):null;let cmp='';
   if(pd&&(pd.v||pd.r)){const diff=d.lucro-pd.lucro;cmp=diff===0?`<div class="mu" style="margin-top:10px">Mesmo lucro de ${monthName(pm)}.</div>`:`<div class="mu" style="margin-top:10px">Lucro <b class="${diff>0?'g':'r'}">${brl(Math.abs(diff))} a ${diff>0?'mais':'menos'}</b> que em ${monthName(pm)}</div>`}
-  return nav+`
+  return `<div class="ptitle">Fechamento <em>da loja</em></div>`+nav+`
   <div class="card hero"><div class="mu">Lucro do mês</div><div class="big ${d.lucro>=0?'g':'r'}">${cnt(d.lucro)}</div>
     <div class="mu" style="margin-top:6px">Vendas ${brl(d.v)} − Reposição ${brl(d.r)}</div>${cmp}</div>
   <div class="card"><div class="row"><b>💰 Vendas</b><b class="g">${brl(d.v)}</b></div>${rowN('Número de vendas',d.n)}${d.n?rowL('Venda média',d.ticket):''}${d.n?rowL('Maior venda',d.maior,'g'):''}</div>
-  <div class="card"><div class="row"><b>📦 Reposição</b><b class="r">${brl(d.r)}</b></div>${rowN('Lançamentos',d.re.length)}${d.margem!==null?rowN('Margem de lucro',d.margem.toFixed(0)+'%'):''}</div>`;
+  <div class="card"><div class="row"><b>📦 Reposição</b><b class="r">${brl(d.r)}</b></div>${rowN('Lançamentos',d.re.length)}${d.margem!==null?rowN('Margem de lucro',d.margem.toFixed(0)+'%'):''}</div>
+  ${saleDonut(d.sa)}`;
 }
 const VIEWS={home:vHome,cards:vCards,spend:vSpend,cofre:vCofre,month:vMonth,shome:vSHome,sled:vSLed,smonth:vSMonth};
 
