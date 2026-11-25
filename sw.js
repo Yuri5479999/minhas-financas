@@ -1,4 +1,4 @@
-const CACHE = 'financas-v11';
+const CACHE = 'financas-v12';
 const FILES = ['./', './index.html', './fonts/Inter-Regular.woff', './fonts/Inter-Medium.woff', './fonts/Inter-SemiBold.woff', './fonts/Inter-Bold.woff', './fonts/Inter-ExtraBold.woff', './fonts/InstrumentSerif-Italic.woff'];
 
 self.addEventListener('install', e => {
@@ -13,30 +13,24 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Abre na hora com o que está guardado e atualiza em segundo plano.
-// Se achar uma versão nova, avisa o app para mostrar "Nova versão disponível".
+// Rede primeiro (com limite de 4s) e, sem internet, usa o que está guardado.
+// Assim cada abertura já traz a versão mais nova do GitHub.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  if (new URL(e.request.url).origin !== self.location.origin) return;  // APIs externas (Gemini) não passam pelo cache
+  if (new URL(e.request.url).origin !== self.location.origin) return;
+  const nav = e.request.mode === 'navigate';
+  const key = nav ? new Request(e.request.url.split('?')[0]) : e.request;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    // abrir com ?parâmetros (Atalho) usa a mesma página guardada
-    const req = e.request.mode === 'navigate' ? new Request(e.request.url.split('?')[0]) : e.request;
-    const cached = await cache.match(req);
-    const net = fetch(req, { cache: 'no-cache' }).then(async res => {
-      if (res && res.ok) {
-        const fresh = await res.clone().text();
-        const old = cached ? await cached.clone().text() : null;
-        await cache.put(req, res.clone());
-        if (old !== null && old !== fresh) {
-          const clients = await self.clients.matchAll();
-          clients.forEach(c => c.postMessage('update'));
-        }
-      }
+    const net = fetch(key, { cache: 'reload' }).then(res => {
+      if (res && res.ok) { const c = res.clone(); e.waitUntil(cache.put(key, c)); }
       return res;
-    }).catch(() => null);
-    if (cached) { e.waitUntil(net); return cached; }
-    const res = await net;
-    return res || (await cache.match('./index.html')) || Response.error();
+    });
+    try {
+      return await Promise.race([net, new Promise((_, rej) => setTimeout(rej, nav ? 4000 : 8000))]);
+    } catch (_) {
+      net.catch(() => {});
+      return (await cache.match(key)) || (await cache.match('./index.html')) || Response.error();
+    }
   })());
 });

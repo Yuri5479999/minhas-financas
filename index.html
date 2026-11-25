@@ -486,7 +486,7 @@ function vSMonth(){
 }
 
 /* ---------- Chat com o Gemini ---------- */
-const APP_VER='25/11 · 5';
+const APP_VER='25/11 · 6';
 const GKEY='nexo_gemini_key',GMODEL='nexo_gemini_model';
 const gKey=()=>{try{return localStorage.getItem(GKEY)||''}catch(e){return''}};
 const chatK=()=>'nexo_chat_v1_'+(S.profile==='store'?'store':'personal');
@@ -743,7 +743,8 @@ const A={
     <div class="btns"><button class="btn" data-a="restore">Restaurar</button></div>
     <div class="btns"><button class="btn del" data-a="wipe">Apagar todos os dados</button></div>
     <div class="btns"><button class="btn sec" data-a="close">Fechar</button></div>
-    <div class="mu" style="text-align:center;margin-top:12px">Versão do app: ${APP_VER}</div>`);
+    <button class="btn" data-a="refreshApp" style="width:100%;margin-top:12px">↻ Atualizar app agora</button>
+    <div class="mu" style="text-align:center;margin-top:8px">Versão do app: ${APP_VER}</div>`);
     const nm=$('#nm');if(nm)nm.onchange=()=>{S.name=nm.value.trim();save();render()};
     $('#bk').value=JSON.stringify(S);const rf=$('#rf');if(rf)rf.onchange=ev=>{const f=ev.target.files[0];if(f)f.text().then(t=>{$('#rs').value=t})};},
   setTheme(id){S.theme=id;save();applyTheme();A.settings()},
@@ -831,6 +832,7 @@ load();applyTheme();applyHide();applyProfile();makeIcon();render(true);
   setTimeout(()=>{if(t==='sale')stForm('sales',null,{title:'💰 Venda recebida (Mercado Pago)',desc:'Venda Pix',value:v,date:d});
     else stForm('restock',null,{title:'📦 Pix enviado — é reposição?',value:v,date:d})},350);
 }catch(e){}})();
+A.refreshApp=async()=>{try{toast('Atualizando…');const rs=await navigator.serviceWorker.getRegistrations();for(const r of rs)await r.unregister();for(const c of await caches.keys())await caches.delete(c)}catch(e){}location.reload()};
 if('serviceWorker' in navigator){addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').catch(()=>{})});navigator.serviceWorker.addEventListener('message',e=>{if(e.data==='update')toast('Nova versão disponível',{label:'Atualizar',fn:()=>location.reload()})})}
 </script>
 </body>
