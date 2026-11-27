@@ -486,8 +486,8 @@ function vSMonth(){
 }
 
 /* ---------- Chat com o Gemini ---------- */
-const APP_VER='25/11 · 6';
-const GKEY='nexo_gemini_key',GMODEL='nexo_gemini_model';
+const APP_VER='27/11 · 7';
+const GKEY='nexo_gemini_key',GMODEL='nexo_gemini_model2';
 const gKey=()=>{try{return localStorage.getItem(GKEY)||''}catch(e){return''}};
 const chatK=()=>'nexo_chat_v1_'+(S.profile==='store'?'store':'personal');
 const chatLoad=()=>{try{return JSON.parse(localStorage.getItem(chatK())||'[]')}catch(e){return[]}};
@@ -551,28 +551,36 @@ async function gModels(key,force){
       const ver=n=>parseFloat((n.match(/^gemini-([\d.]+)-/)||[0,0])[1]);
       const fl=ok.filter(n=>/^gemini-[\d.]+-flash$/.test(n)).sort((a,b)=>ver(b)-ver(a));
       const lt=ok.filter(n=>/^gemini-[\d.]+-flash-lite$/.test(n)).sort((a,b)=>ver(b)-ver(a));
-      list=fl.slice(0,3).concat(lt.slice(0,1))}
+      list=lt.slice(0,1).concat(fl.slice(0,2))}
   }catch(e){}
-  ['gemini-2.5-flash','gemini-2.5-flash-lite'].forEach(n=>{if(!list.includes(n))list.push(n)});
+  ['gemini-2.5-flash-lite','gemini-2.5-flash'].forEach(n=>{if(!list.includes(n))list.push(n)});
   try{localStorage.setItem(GMODEL,JSON.stringify({l:list,t:Date.now()}))}catch(e){}
   return list;
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function callGemini(key,hist,round){
+async function callGemini(key,hist,round,onText){
   round=round||0;
   const models=await gModels(key,round>0);
   const sys=`Você é o assistente financeiro de ${S.name||'um usuário'}, dentro do app Minhas Finanças. Responda em português do Brasil, de forma curta e direta (até uns 120 palavras), com valores em R$. Use SOMENTE os dados abaixo; se faltar informação, diga o que falta. Confira as contas antes de responder. Não recomende investimentos específicos.\n\nDADOS DO APP:\n${finCtx()}`;
-  const body=JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist.map(m=>({role:m.r==='u'?'user':'model',parts:[{text:m.t}]})),generationConfig:{temperature:.5,maxOutputTokens:1500}});
+  const body=JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:hist.map(m=>({role:m.r==='u'?'user':'model',parts:[{text:m.t}]})),generationConfig:{temperature:.5,maxOutputTokens:900}});
+  const mk=m=>{const o=JSON.parse(body);o.generationConfig.thinkingConfig=/^gemini-2\./.test(m)?{thinkingBudget:0}:{thinkingLevel:'minimal'};return JSON.stringify(o)};
   let last=null;
   for(const model of models){
-    const base=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-    let r;
-    try{r=await fetch(base+'?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body})}
-    catch(e1){
-      try{r=await fetch(base,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body})}
-      catch(e2){throw new Error('Não consegui conectar ao Gemini ('+(e2.message||e1.message||'falha de rede')+'). Confira a internet e, se usar VPN, DNS filtrado ou bloqueador de conteúdo, desligue e tente de novo.')}
-    }
-    if(r.ok){const j=await r.json();const t=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim();
+    const base=`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
+    let r,b=mk(model);
+    const go=async bd=>{try{return await fetch(base+'&key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:bd})}
+      catch(e1){try{return await fetch(base,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:bd})}
+      catch(e2){throw new Error('Não consegui conectar ao Gemini ('+(e2.message||e1.message||'falha de rede')+'). Confira a internet e, se usar VPN, DNS filtrado ou bloqueador de conteúdo, desligue e tente de novo.')}}};
+    r=await go(b);
+    if(r.status===400){const m0=await r.clone().json().then(j=>j.error?.message||'').catch(()=>'');if(/think/i.test(m0)){r=await go(body)}}
+    if(r.ok){
+      let t='';
+      try{const rd=r.body.getReader(),dc=new TextDecoder();let buf='';
+        for(;;){const {done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});
+          const parts=buf.split('\n');buf=parts.pop();
+          for(const ln of parts){if(!ln.startsWith('data:'))continue;try{const j=JSON.parse(ln.slice(5));t+=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');if(onText)onText(t)}catch(e){}}}
+      }catch(e){}
+      t=t.trim();
       if(t)return t;last='O Gemini não devolveu resposta. Tente reformular a pergunta.';continue}
     let msg='';try{msg=(await r.json()).error?.message||''}catch(e){}
     if(r.status===400&&/API key/i.test(msg))throw new Error('Chave inválida. Toque em Ajustes (⚙️) e cole a chave de novo.');
@@ -580,7 +588,7 @@ async function callGemini(key,hist,round){
     if([404,429,500,502,503,504].includes(r.status)){last=r.status;continue}   // tenta o próximo modelo
     throw new Error('O Gemini não respondeu ('+r.status+'). '+msg.slice(0,120));
   }
-  if(round<1){await sleep(2500);return callGemini(key,hist,1)}
+  if(round<1){await sleep(2500);return callGemini(key,hist,1,onText)}
   if(last===429)throw new Error('O limite grátis do Gemini foi atingido por agora. Tente de novo em alguns minutos.');
   if(typeof last==='string')throw new Error(last);
   throw new Error('O Gemini está sobrecarregado neste momento (o Google avisa que é temporário). Tente de novo em um minuto.');
@@ -593,7 +601,7 @@ async function sendChat(text){
   const lg=$('#chatlog');if(!lg.querySelector('.bub'))lg.innerHTML='';
   lg.insertAdjacentHTML('beforeend',bubble({r:'u',t:text})+'<div class="bub a typing" id="typ"><i></i><i></i><i></i></div>');
   scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
-  try{const ans=await callGemini(key,hist);hist.push({r:'a',t:ans});chatSave(hist);
+  try{const ans=await callGemini(key,hist,0,t=>{const e=$('#typ');if(e){e.classList.remove('typing');e.innerHTML=mdLite(t)}});hist.push({r:'a',t:ans});chatSave(hist);
     const typ=$('#typ');if(typ){typ.outerHTML=bubble({r:'a',t:ans})}}
   catch(e){const typ=$('#typ');if(typ)typ.outerHTML=`<div class="bub a" style="border-color:var(--rd)">${esc(e.message||'Algo deu errado.')}</div>`;hist.pop();chatSave(hist)}
   chatBusy=false;scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
