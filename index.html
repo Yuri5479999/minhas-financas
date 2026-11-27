@@ -364,7 +364,7 @@ function vSaidas(){
       return `<div class="item" data-a="editFixed" data-id="${f.id}"><div class="row" style="justify-content:flex-start;min-width:0"><button class="chk ${paid?'on':''}" data-a="togFixed" data-id="${f.id}" aria-label="Marcar como pago">✓</button><div class="l"><b>${esc(f.name)}</b><span class="pill">${esc(f.category)}</span><span class="mu">${f.day?'Todo dia '+f.day:'Mensal'}</span>${late?'<span class="pill r">atrasado</span>':soon?'<span class="pill r">vence '+(dd===0?'hoje':'em '+dd+'d')+'</span>':''}</div></div><b class="${paid?'mu':'r'}" style="${paid?'text-decoration:line-through':''}">${brl(f.value)}</b></div>`}).join('')||'<div class="empty"><div class="ei">📌</div>Aluguel, internet, academia…<br>Cadastre o que se repete todo mês.</div>'}
     ${S.fixed.length?`<div class="row" style="padding-top:10px"><span class="mu">Total fixo por mês</span><b class="r">${brl(fixos)}</b></div><div class="row" style="padding-top:4px"><span class="mu">Falta pagar este mês</span>${pend>0?`<b class="r">${brl(pend)}</b>`:'<b class="g">Tudo pago ✓</b>'}</div>`:''}</div>
   ${payList}
-  <div class="sec-title"><h2>Lançamentos</h2><button class="btn sm" data-a="addExp">+ Gasto</button></div>
+  <div class="sec-title"><h2>Lançamentos</h2><div style="display:flex;gap:6px"><button class="btn sec sm" data-a="paste">📋 Colar</button><button class="btn sm" data-a="addExp">+ Gasto</button></div></div>
   <input type="month" id="mon" value="${viewMonth}" style="margin-bottom:12px">
   <div class="card"><div class="row"><b>Por categoria</b><button class="btn sec sm" data-a="budgets">Limites</button></div>
     ${cats.map(([k,v])=>{const lim=S.budgets[k]||0,over=lim>0&&v>lim,p=lim?v/lim*100:(tot?v/tot*100:0);
@@ -486,7 +486,7 @@ function vSMonth(){
 }
 
 /* ---------- Chat com o Gemini ---------- */
-const APP_VER='27/11 · 7';
+const APP_VER='27/11 · 8';
 const GKEY='nexo_gemini_key',GMODEL='nexo_gemini_model2';
 const gKey=()=>{try{return localStorage.getItem(GKEY)||''}catch(e){return''}};
 const chatK=()=>'nexo_chat_v1_'+(S.profile==='store'?'store':'personal');
@@ -677,11 +677,12 @@ const A={
   async paste(){
     let t='';
     try{t=await navigator.clipboard.readText()}catch(e){toast('Não consegui ler o que foi copiado. Permita colar e tente de novo.');return}
-    const m=/NEXO\s*\|\s*(sale|restock)\s*\|\s*([\d.,]+)\s*\|\s*(\d{4}-\d{2}-\d{2})/.exec(t||'');
+    const m=/NEXO\s*\|\s*(sale|restock|spend)\s*\|\s*([\d.,]+)\s*\|\s*(\d{4}-\d{2}-\d{2})(?:\s*\|([^|\n]*))?(?:\|([^|\n]*))?/.exec(t||'');
     if(!m){toast('Nada do Atalho para colar ainda.');return}
     const v=m[2].includes(',')?num(m[2]):parseFloat(m[2])||0;
     if(!(v>0)){toast('Valor inválido.');return}
     try{navigator.clipboard.writeText('')}catch(e){}
+    if(m[1]==='spend'){const sp=guessSpend(m[4],m[5]);expForm(null,{desc:sp.desc,value:v,date:m[3],category:sp.cat,cardId:sp.cardId,method:'card'});return}
     ssub=m[1]==='sale'?'sale':'restock';
     if(m[1]==='sale')stForm('sales',null,{title:'💰 Venda recebida (Mercado Pago)',desc:'Venda Pix',value:v,date:m[3]});
     else stForm('restock',null,{title:'📦 Pix enviado — é reposição?',value:v,date:m[3]})
@@ -763,17 +764,24 @@ const A={
 
 function confetti(){if(REDUCED)return;const cols=['#34d399','#22d3ee','#3b82f6','#fbbf24','#f472b6','#a78bfa'];
   for(let i=0;i<46;i++){const d=document.createElement('i');d.className='cf';d.style.cssText=`left:${Math.random()*100}%;background:${cols[i%cols.length]};--d:${1.6+Math.random()*1.4}s;--dl:${Math.random()*.4}s;--x:${(Math.random()-.5)*160}px`;document.body.appendChild(d);setTimeout(()=>d.remove(),3600)}}
-function expForm(e){
+const CAT_KW={Mercado:/mercado|supermerc|atacad|assa[ií]|carrefour|extra|p[aã]o de a[cç]|hortifruti|dia\b|sacol[aã]o/i,Alimentação:/ifood|restaur|lanch|pizza|burger|mcdonald|subway|padaria|caf[eé]|bar\b|sorvet|a[cç]a[ií]|rappi/i,Transporte:/uber|99|posto|shell|ipiranga|combust|estaciona|metr[oô]|sem parar|taxi/i,Saúde:/farm|drog|raia|pacheco|cl[ií]nica|hospital|laborat|dent/i,Assinaturas:/netflix|spotify|apple|google|youtube|prime|disney|max\b|icloud|chatgpt|openai|anthropic|claude/i,Lazer:/cinema|ingresso|steam|playstation|xbox|show|teatro/i,Compras:/amazon|shopee|mercado ?livre|magalu|shein|americanas|aliexpress|renner|zara/i,Educação:/curso|escola|faculdade|udemy|alura/i};
+function guessSpend(merchant,card){
+  const mer=(merchant||'').trim(),cd=(card||'').trim().toLowerCase();let cat='Outros';
+  for(const k in CAT_KW)if(CAT_KW[k].test(mer)){cat=k;break}
+  let c=null;if(cd)c=S.cards.find(x=>{const n=x.name.toLowerCase();return n.includes(cd)||cd.includes(n)});
+  if(!c&&S.cards.length===1)c=S.cards[0];
+  return{desc:mer,cat,cardId:c?c.id:''}}
+function expForm(e,pre){pre=pre||{};
   const cardOpts=S.cards.length?S.cards.map(c=>[c.id,c.name]):[['','(cadastre um cartão primeiro)']];
   const fields=[
-    {k:'desc',label:'Descrição (ex.: Almoço)',value:e?.desc||''},
-    {k:'value',label:e?'Valor (R$)':'Valor (R$) — total da compra',type:'money',value:e?.value||'',ph:'0,00'},
-    {k:'category',label:'Categoria',type:'select',options:CATS.map(c=>[c,c]),value:e?.category||'Mercado'},
+    {k:'desc',label:'Descrição (ex.: Almoço)',value:e?.desc||pre.desc||''},
+    {k:'value',label:e?'Valor (R$)':'Valor (R$) — total da compra',type:'money',value:e?.value||pre.value||'',ph:'0,00'},
+    {k:'category',label:'Categoria',type:'select',options:CATS.map(c=>[c,c]),value:e?.category||pre.category||'Mercado'},
     {k:'method',label:'Forma de pagamento',type:'select',options:Object.entries(METHODS),value:e?.method||'card'},
-    {k:'cardId',label:'Qual cartão?',type:'select',options:cardOpts,value:e?.cardId||'',showIf:['method','card']}];
+    {k:'cardId',label:'Qual cartão?',type:'select',options:cardOpts,value:e?.cardId||pre.cardId||'',showIf:['method','card']}];
   if(!e)fields.push({k:'parcelas',label:'Parcelas (1 = à vista)',type:'int',value:1,showIf:['method','card']});
-  fields.push({k:'date',label:e?'Data':'Data da compra (1ª parcela)',type:'date',value:e?.date||today()});
-  form({title:e?'Editar gasto':'Novo gasto',fields,
+  fields.push({k:'date',label:e?'Data':'Data da compra (1ª parcela)',type:'date',value:e?.date||pre.date||today()});
+  form({title:e?'Editar gasto':pre.desc!==undefined?'💳 Compra no Apple Pay':'Novo gasto',fields,
     validate:v=>v.value<=0?'Informe o valor.':(v.method==='card'&&!v.cardId)?'Escolha um cartão (cadastre na aba Cartões).':!v.date?'Informe a data.':(!e&&v.method==='card'&&(v.parcelas<1||v.parcelas>48))?'Parcelas: de 1 a 48.':'',
     onSave:v=>{
       if(v.method!=='card')v.cardId='';
